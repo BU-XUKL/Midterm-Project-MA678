@@ -208,7 +208,7 @@ crime\_rate & = -0.21 + 0.16\cdot UCR\_PART_{Part 2} + 0.42\cdot UCR\_PART_{Part
 
 The coefficients of UCR_PART are also in line with the previous observations. Part 3 has the steepest slope, and its coefficient is positive and greater than that of Part 2. In the case where the three continuous variables are the same, when Part 2 replaces Part 1, the predicted difference in crime rate decreases by 0.21%. Next, the positive and negative coefficients of the three continuous variables in the formula are consistent with EDA plots. For each 1% increase in log(income), the predicted difference in crime rate increases by 0.03%. And the same for number of labor rate and poverty rate. 
 
-For different month, the influence of UCR_PART is always not the same while the magnitude of the difference of other three continuous variables is 1e-6.  The reason for the small difference of the continuous variable may be that the month has a relatively small impact on correlation of crime rate and demographic data, and the demographic data is unique in the entire statistical time period (2015-2019). 
+For different month, the influence of UCR_PART is always not the same while the magnitude of the difference of other three continuous variables is $10^{-6}$.  The reason for the small difference of the continuous variable may be that the month has a relatively small impact on correlation of crime rate and demographic data, and the demographic data is unique in the entire statistical time period (2015-2019). 
 
 | $Month |(Intercept) |Part 2 |Part 3 |log_Income |Labor_rate |Poverty_rate |
 |:---:   |:---:       |:---:          |:---:      |:---:       |:---:      |:---:      |
