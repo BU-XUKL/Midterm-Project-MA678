@@ -1,0 +1,349 @@
+---
+title: "Dataprocessing"
+author: "Keliang Xu"
+date: "11/25/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(magrittr)
+library(dplyr)
+library(leaflet)
+library(ggmap)
+library(cleaner)
+library(graphics)
+library(lme4)
+library(stringr)
+library(jtools)
+library(car)
+
+library(sp)
+library(maps)
+library(maptools)
+library(lattice)
+library(arm)
+```
+
+## Download Data
+
+
+```{r}
+data1 <- read.csv("Data/crime.csv", header = TRUE)
+head(data1)
+data <- read.csv("Data/crime.csv", header = TRUE)
+
+data_offcode<-read.csv("Data/offense_codes.csv", header = TRUE)
+
+newdata<-read.csv("Data/newdata.csv", header = TRUE)
+
+USpop<-324697795
+MApop<-6850553
+BOpop<-684379
+newdata[,1:2]
+```
+
+
+```{r,include=FALSE}
+
+
+# The single argument to this function, pointsDF, is a data.frame in which:
+#   - column 1 contains the longitude in degrees (negative in the US)
+#   - column 2 contains the latitude in degrees
+
+latlong2county <- function(pointsDF) {
+    # Prepare SpatialPolygons object with one SpatialPolygon
+    # per county
+    counties <- map('county', fill=TRUE, col="transparent", plot=FALSE)
+    IDs <- sapply(strsplit(counties$names, ":"), function(x) x[1])
+    counties_sp <- map2SpatialPolygons(counties, IDs=IDs,
+                     proj4string=CRS("+proj=longlat +datum=WGS84"))
+
+    # Convert pointsDF to a SpatialPoints object 
+    pointsSP <- SpatialPoints(pointsDF, 
+                    proj4string=CRS("+proj=longlat +datum=WGS84"))
+
+    # Use 'over' to get _indices_ of the Polygons object containing each point 
+    indices <- over(pointsSP, counties_sp)
+
+    # Return the county names of the Polygons object containing each point
+    countyNames <- sapply(counties_sp@polygons, function(x) x@ID)
+    countyNames[indices]
+}
+
+# Test the function using points in Wisconsin and Oregon.
+testPoints <- data.frame(x = c(-71.13937, -71.07772), y = c(42.35779, 42.34858))
+
+latlong2county(testPoints)
+```
+
+## select district with code
+```{r}
+data<-data1
+dataDis<-data %>% dplyr::select(INCIDENT_NUMBER,DISTRICT,Lat,Long)
+dataDis<-unique(dataDis)
+dataDis %<>% filter(!is.na(Lat) & !Lat==-1)
+
+
+tidy_Dis<-dataDis %>% filter(DISTRICT=="E5")
+#table(tidy_Dis$DISTRICT)
+leaflet(tidy_Dis) %>% addTiles()%>% addCircles(~Long,~Lat)
+
+```
+
+## map of hole data
+
+```{r}
+data<-data1
+map<-data %>% dplyr::select(INCIDENT_NUMBER,Lat,Long)
+map<-unique(map)
+map %<>% filter(!is.na(Lat) & !Lat==-1)
+
+datamap<-map[1:10000,]
+
+leaflet(datamap) %>% addTiles()%>% addCircles(~Long,~Lat)
+
+streetdata<-data%>%dplyr::select(INCIDENT_NUMBER,STREET)
+streetdata<-unique(streetdata)
+streetdata %<>% filter(!is.na(STREET) & !STREET=="")
+freq(streetdata$STREET)
+```
+
+
+## EDA
+```{r}
+#time
+
+data<-data1
+data<-transform(data,TIME=HOUR)
+#lendata<-length(data$INCIDENT_NUMBER)
+#data$TIME<-as.numeric(data$TIME)
+#for(i in 1:lendata){
+#  if(data$TIME[i]==0) data$TIME[i]<-as.numeric(24);
+#}
+# data$TIME<-round((data$TIME+0.8)/2)
+
+edadata<-data%>%dplyr::select(1,2,5,7,9:14,18)
+tmp<-rep(0,10)
+for(i in 1:10){
+  tmp[i]<-sum(is.na(edadata[,i]) | edadata[,i]=="")
+}
+timedata<-edadata%>%dplyr::select(1,5:8,11)
+timedata<-unique(timedata)
+par(mfrow=c(2,2))
+barplot(height=table(timedata$YEAR))
+barplot(height=table(timedata$MONTH))
+weekdata<-table(timedata$DAY_OF_WEEK)
+rownames(weekdata)<-c("Fri","Mon","Sat","Sun","Thu","Tue","Wed")
+barplot(height=weekdata)
+barplot(height=table(timedata$TIME))
+```
+```{r}
+##code group
+codegdata<-data%>%select(1:3,7,13)
+#freq(codegdata$INCIDENT_NUMBER)
+##I162030584 has 13 count of record all have different code group and UCR_PART
+freq(codegdata$OFFENSE_CODE_GROUP)
+freq(codegdata$SHOOTING)
+freq(codegdata$UCR_PART)
+
+
+```
+
+```{r}
+##District
+districtdata<-edadata %>% select(1,3)
+districtdata<-unique(districtdata)
+districtdata %<>% filter(!is.na(DISTRICT) & !DISTRICT=="")
+freq(districtdata$DISTRICT)
+barplot(height = table(districtdata$DISTRICT))
+```
+
+
+
+## new data frame and data processing
+
+```{r}
+# 2015.7-2018.8 3 year average
+data2<-filter(data,!(YEAR=="2018"& MONTH=="9"))
+data2 %<>% filter(!(YEAR=="2015"& MONTH=="6"))
+
+
+newtidydata<-aggregate(data2$INCIDENT_NUMBER,list(data2$UCR_PART,data2$DISTRICT,data2$MONTH),length)
+names(newtidydata)<-c("UCR_PART","DISTRICT","MONTH","INCIDENT_NUMBER")
+
+#delect UCR_PART and district
+newtidydata %<>% filter(!is.na(UCR_PART) & !UCR_PART=="" & !UCR_PART=="Other")
+newtidydata %<>% filter(!is.na(DISTRICT) & !DISTRICT=="")
+
+lendata<-length(newtidydata$UCR_PART)
+for(i in 1:lendata){
+  if(newtidydata$MONTH[i]==8 | newtidydata$MONTH[i]==9) 
+    newtidydata$INCIDENT_NUMBER[i]<-newtidydata$INCIDENT_NUMBER[i]/4
+  else newtidydata$INCIDENT_NUMBER[i]<-newtidydata$INCIDENT_NUMBER[i]/3
+}
+
+
+#sum(newtidydata$INCIDENT_NUMBER)
+
+newtidydata %<>% left_join(newdata,key="DISTRICT")
+newtidydata <- cbind(newtidydata,crime_rate=newtidydata$INCIDENT_NUMBER/newtidydata$Population)
+newtidydata  <- cbind(newtidydata ,log_Income=log(newtidydata$Per.Capita.Income))
+
+plotdata<-aggregate(newtidydata$crime_rate,list(newtidydata$MONTH,newtidydata$Per.Capita.Income,newtidydata$Labor.Force.Participation,newtidydata$Poverty.rate),sum)
+names(plotdata)<-c("Month","Income","Labor","Poverty","crime_rate")
+plotdata <- cbind(plotdata,log_Income=log(plotdata$Income))
+```
+
+```{r}
+plotdata$crime_rate<-plotdata$crime_rate*100
+newtidydata$crime_rate<-newtidydata$crime_rate*100
+ggplot(data = plotdata)+
+  aes(log_Income,crime_rate)+
+  geom_point(alpha = 0.3,aes(color = Month))+
+  scale_fill_brewer(direction = -1)+ geom_smooth( aes(color=Month),se=F,method = "lm")
+
+ggplot(data = plotdata)+
+  aes(Labor,crime_rate)+
+  geom_point(alpha = 0.3,aes(color = Month))+
+  scale_fill_brewer(direction = -1)+ geom_smooth( aes(color=Month),se=F,method = "lm")
+
+ggplot(data = plotdata)+
+  aes(Poverty,crime_rate)+
+  geom_point(alpha = 0.3,aes(color = Month))+
+  scale_fill_brewer(direction = -1)+ geom_smooth( aes(color=Month),se=F,method = "lm")
+
+fit<-lm(crime_rate~log_Income,data=plotdata)
+summary(fit)
+fit<-lm(crime_rate~Labor,data=plotdata)
+summary(fit)
+fit<-lm(crime_rate~Poverty,data=plotdata)
+summary(fit)
+
+
+fit<-lm(crime_rate~log_Income+Labor+Poverty,data=plotdata)
+summary(fit)
+
+
+fit<-lm(crime_rate~UCR_PART+Labor.Force.Participation+Poverty.rate,data=newtidydata)
+summary(fit)
+```
+
+
+```{r}
+
+tidydata<-aggregate(data$INCIDENT_NUMBER,list(data$UCR_PART,data$DISTRICT,data$TIME),length)
+names(tidydata)<-c("UCR_PART","DISTRICT","TIME","INCIDENT_NUMBER")
+lentidy<-length(tidydata$UCR_PART)
+sum2<-0
+for(i in 1:lentidy){
+  if(tidydata$DISTRICT[i]=="") 
+    tidydata$DISTRICT[i]="Other"
+  if(as.integer(tidydata$TIME[i]) <10){
+    tidydata$TIME[i]=str_c("Type 0",tidydata$TIME[i])
+  }
+  else tidydata$TIME[i]=str_c("Type ",tidydata$TIME[i])
+  
+  if(tidydata$UCR_PART[i]=="Part One") tidydata$UCR_PART[i]="Part 1"
+  if(tidydata$UCR_PART[i]=="Part Two") tidydata$UCR_PART[i]="Part 2"
+  if(tidydata$UCR_PART[i]=="Part Three") tidydata$UCR_PART[i]="Part 3"
+  if(tidydata$UCR_PART[i]=='Other') tidydata$UCR_PART[i]="Part Other"
+}
+
+
+tidydata %<>% filter(!is.na(UCR_PART) & !UCR_PART=="")
+
+
+sum(tidydata$INCIDENT_NUMBER)
+
+ggplot(data = tidydata)+
+  aes(TIME,INCIDENT_NUMBER)+
+  geom_point(alpha = 0.3,aes(color = DISTRICT))+
+  scale_fill_brewer(direction = -1)+ geom_smooth( aes(color = DISTRICT),se=F,method = "lm")
+ggplot(data = tidydata)+
+  aes(UCR_PART,INCIDENT_NUMBER)+
+  geom_point(alpha = 0.3,aes(color = DISTRICT))+
+  scale_fill_brewer(direction = -1)+ geom_smooth( aes(color = DISTRICT),se=F,method = "lm")
+
+fit<-lm(INCIDENT_NUMBER~UCR_PART,data=tidydata)
+summary(fit)
+
+
+fit<-lm(INCIDENT_NUMBER~TIME,data=tidydata)
+summary(fit)
+summ(fit)
+
+
+```
+
+
+```{r}
+glmer
+model1<-lmer(INCIDENT_NUMBER~UCR_PART+TIME+(UCR_PART|DISTRICT)+(TIME|DISTRICT),tidydata)
+model1
+coef(model1)
+summary(model1)
+summ(model1)
+Anova(model1)
+```
+
+
+```{r}
+#fit<-lm(crime_rate~log_Income+Labor+Poverty,data=plotdata)
+model1<-lmer(crime_rate~log_Income+Labor+Poverty+(1+log_Income|Month)+(1+Labor|Month)+(1+Poverty|Month),plotdata)
+model1
+coef(model1)
+summary(model1)
+summ(model1)
+Anova(model1)
+```
+
+```{r}
+
+#fit<-lm(crime_rate~UCR_PART+Labor.Force.Participation+Poverty.rate,data=newtidydata)
+model2<-lmer(crime_rate~UCR_PART+Labor.Force.Participation+Poverty.rate+(UCR_PART|MONTH)+(1+log_Income|MONTH)+(1+Labor.Force.Participation|MONTH)+(1+Poverty.rate|MONTH),newtidydata)
+model2
+coef(model2)
+summary(model2)
+summ(model2)
+Anova(model2)
+
+```
+
+## check model
+```{r}
+plot(model1)
+qqmath(model1)
+ggplot(data.frame(lev=hatvalues(model1),pearson=residuals(model1,type="pearson")),
+      aes(x=lev,y=pearson)) +
+    geom_point() +
+    theme_bw()
+```
+
+
+## new check model
+
+```{r}
+plot(model1)
+qqmath(model1)
+
+
+ggplot(data.frame(lev=hatvalues(model1),pearson=residuals(model1,type="pearson")),
+      aes(x=lev,y=pearson)) +
+    geom_point() +
+    theme_bw()
+
+plot(model2)
+qqmath(model2)
+
+
+ggplot(data.frame(lev=hatvalues(model2),pearson=residuals(model2,type="pearson")),
+      aes(x=lev,y=pearson)) +
+    geom_point() +
+    theme_bw()
+
+binnedplot(fitted(model1),resid(model1,type="response"))
+binnedplot(fitted(model2),resid(model2,type="response"))
+```
+
