@@ -49,11 +49,11 @@ newdata<-read.csv("Data/newdata.csv", header = TRUE)
 
 ## Abstract
 
-Crime incident reports are provided by Boston Police Department (BPD) to document the initial details surrounding an incident includes times, locations, and descriptions of crimes. According to map of crime numbers, my question is: What does the crime rate in a certain district associated with? To dig deeper into this issue, I use one categorical factor and some demographic factors related to crime rate and build multilevel model. The model shows that income and labor rate have negative impact and poverty has positive impact on crime rate in Boston and is slightly different between month. This report are consisted 5 main parts: Introduction, Method, Result and Discussion. 
+Crime incident reports are provided by Boston Police Department (BPD) to document the initial details surrounding an incident includes times, locations, and descriptions of crimes. According to different crime rate in district, my question is: What does the crime rate in a certain district associated with? To dig deeper into this issue, I use one categorical factor and some demographic factors related to crime rate and build multilevel model. The model shows that income and labor rate have negative impact and poverty has positive impact on crime rate in Boston and is different between district. This report are consisted 5 main parts: Introduction, Method, Result and Discussion. 
 
 ## Introduction 
 
-Crime incident reports are provided by Boston Police Department (BPD) to document the initial details surrounding an incident to which BPD officers respond. This is a dataset containing records from the new crime incident report system, which includes a reduced set of fields focused on capturing the type of incident as well as when and where it occurred. Because the data is the information of each case, after data integration, the number of each type of crime in each district at each time is counted. I couldn't see the relevant factors, so I introduced demographic data. Convert the number of crimes into crime rates, and build a model with the factor in demographic. Among a lot of demographic data, I chose three representative data, income, poverty rate and labor rate.
+Crime incident reports are provided by Boston Police Department (BPD) to document the initial details surrounding an incident to which BPD officers respond. It is containing records from the new crime incident report system, which includes a reduced set of fields focused on capturing the type of incident as well as when and where it occurred. Because the data is the information of each case, after data integration, the number of each type of crime in each district at each time is counted. In this dataset, I couldn't see the relevant factors, so I introduced demographic data in Boston. Convert the number of crimes into crime rates, and build a model with the factor in demographic. Among a lot of demographic data, I chose three representative data, income, poverty rate and labor rate.
 
 Therefore, I use a multilevel model to see how these factors affect the crime rate. Before that, I will clean up the data and combine demographic data in Boston.
 
@@ -63,7 +63,7 @@ Therefore, I use a multilevel model to see how these factors affect the crime ra
 
 The main data set I found pobulished on [Kaggle: Crimes in Boston](https://www.kaggle.com/AnalyzeBoston/crimes-in-boston). And I combine the main data set with demographic data for Boston’s Neighborhoods on [Demographic Data for Boston’s Neighborhoods](https://data.boston.gov/dataset/neighborhood-demographics).
 
-Firstly, because raw data recorded case by case, I need to count them according to a certain rule, here are district, month and type of crime(UCR_PART). Plus, the time period of time is 2015.7-2018.8 and I use the average crime number of each month. Secondly, I filtered and removed empty, `other` and obviously unreasonable data in new data set. Thirdly, by marking points on the map, determine which Neighborhoods each district represents. Finally, I combine the cleaned data with demographic data for Boston’s Neighborhoods so I get a brand new data set for next-step modeling.
+Firstly, because raw data recorded case by case, I need to count them according to a certain rule. I chose district, month and type of crime(UCR_PART). Plus, the time period of time is 2015.7-2018.8 and I use the average crime number of each month. Secondly, I filtered and removed empty, `other` and obviously unreasonable data in new data set. Thirdly, by marking cases on the map, determine which Neighborhoods each district represents. Finally, I combine the cleaned data with demographic data for Boston’s Neighborhoods so I get a brand new data set for next-step modeling.
 
 In order to facilitate the modeling below, I performed some transformations on `income` and `crime_rate`. The final tidy data set has 432 rows and 7 rows which contain all the data and variables I use in this report.
 
@@ -162,7 +162,7 @@ Different from the previous figures, the slopes of these three plots are positiv
 ### Model Fitting
 
 ```{r include=FALSE}
-model<-lmer(Crime_rate~UCR_PART+log_Income+Labor_rate+Poverty_rate+(UCR_PART|Month)+(1+log_Income|Month)+(1+Labor_rate|Month)+(1+Poverty_rate|Month),newtidydata)
+model<-lmer(Crime_rate~UCR_PART+log_Income+Labor_rate+Poverty_rate+(UCR_PART|District)+(1+log_Income|District)+(1+Labor_rate|District)+(1+Poverty_rate|District),newtidydata)
 model
 coef(model)
 summary(model)
@@ -171,12 +171,12 @@ Anova(model)
 
 ```
 
-In order to consider different month, I use multilevel model to fit the data. It is clear show the different correlation with three continues variables log(income), labor rate, poverty rate with different `UCR_PART`. So I will put `UCR_PART` as categorical variable in the model.
+In order to consider different district, I use multilevel model to fit the data. It is clear show the different correlation with three continues variables log(income), labor rate, poverty rate with different `UCR_PART`. So I will put `UCR_PART` as categorical variable in the model.
 Below is the function:   
 
 ```{r eval=FALSE}
-model<-lmer(Crime_rate~UCR_PART+log_Income+Labor_rate+Poverty_rate+(UCR_PART|Month)
-+(1+log_Income|Month)+(1+Labor_rate|Month)+(1+Poverty_rate|Month),newtidydata)
+model<-lmer(Crime_rate~UCR_PART+log_Income+Labor_rate+Poverty_rate+(UCR_PART|District)
++(1+log_Income|District)+(1+Labor_rate|District)+(1+Poverty_rate|District),newtidydata)
 ```
 
 
@@ -184,38 +184,39 @@ Fixed effects:
 
 |                |Estimate   |Std. Error  |df        |t value |Pr(>&#124;t&#124;) |
 |:---:           |:---:      |:---:       |:---:     |:---:   |:---:              |
-|(Intercept)     |-0.18      |0.53        |415.42    |-0.344  |0.73110            |
-|UCR_PARTPart 2  |0.16       |0.03        |226.98    |4.720   |4.13e-06 ***       |
-|UCR_PARTPart 3  |0.43       |0.04        |57.46     |12.086  |< 2e-16  ***       |
-|log_Income      |0.03       |0.04        |414.98    |0.772   |0.44038            |
-|Labor_rate      |-0.14      |0.48        |415.00    |-0.292  |0.77024            |
-|Poverty_rate    |1.19       |0.36        |415.00    |3.309   |0.00102 **         |
+|(Intercept)     |-2.16      |0.72        |9.72    |-3.013 |0.013455 *         |
+|UCR_PARTPart 2  |0.16       |0.05        |11.01    |3.528   |0.004729 **        |
+|UCR_PARTPart 3  |0.43       |0.09        |11.00     |4.608  |0.000756 ***       |
+|log_Income      |0.02       |0.07        |13.31    |4.278   |0.000853 ***            |
+|Labor_rate      |-0.46      |0.63        |3.64    |-0.741  |0.503423            |
+|Poverty_rate    |0.92       |0.40        |9.77    |2.304   |0.044542 *         |
 
 
 ## Result
 
 ### Model Coefficients
 
-As an example, the formula in January: 
+As an example, the formula in A1 district: 
 
 \begin{equation}
 \begin{aligned}
-crime\_rate & = -0.21 + 0.16\cdot UCR\_PART_{Part 2} + 0.42\cdot UCR\_PART_{Part 3} + 0.03\cdot log(income) \\
-& + -0.14\cdot Labor\_rate + 1.19\cdot Poverty\_rate \nonumber
+crime\_rate & = -2.11 + 0.18\cdot UCR\_PART_{Part 2} + 0.48\cdot UCR\_PART_{Part 3} + 0.34\cdot log(income) \\
+& + -0.37\cdot Labor\_rate + 0.92\cdot Poverty\_rate \nonumber
 \end{aligned}
 \label{f2}
 \end{equation}
 
-The coefficients of `UCR_PART` are also in line with the previous observations. Part 3 has the steepest slope, and its coefficient is positive and greater than that of Part 2. In the case where the three continuous variables are the same, when Part 2 replaces Part 1, the predicted difference in crime rate decreases by 0.21%. Next, the positive and negative coefficients of the three continuous variables in the formula are consistent with EDA plots. For each 1% increase in log(income), the predicted difference in crime rate increases by 0.03%. And the same for number of labor rate and poverty rate. 
+The coefficients of `UCR_PART` are also in line with the previous observations. Part 3 has the steepest slope, and its coefficient is positive and greater than that of Part 2. In the case where the three continuous variables are the same, when Part 2 replaces Part 1, the predicted difference in crime rate decreases by 2.11%. Next, the positive and negative coefficients of the three continuous variables in the formula are consistent with EDA plots. For each 1% increase in log(income), the predicted difference in crime rate increases by 0.34%. And the same for number of labor rate and poverty rate. 
 
-For different month, the influence of UCR_PART is always not the same while the magnitude of the difference of other three continuous variables is $10^{-6}$.  The reason for the small difference of the continuous variable may be that the month has a relatively small impact on correlation of crime rate and demographic data, and the demographic data is unique in the entire statistical time period (2015-2019). 
+
+For different district, the influence of UCR_PART and two continuous are always not the same, while the magnitude of the difference of poverty rate is $10^{-7}$.  The small differences in this continuous variable may be due to the relatively small effect of different regions on the correlation between poverty and crime rates, and the fact that the other variables do not fluctuate much.
 
 | $Month |(Intercept) |Part 2 |Part 3 |log_Income |Labor_rate |Poverty_rate |
 |:---:   |:---:       |:---:          |:---:      |:---:       |:---:      |:---:      |
-|1       |-0.21      |0.16         |0.42       |0.03        |-0.14    |1.19   |
-|2       |-0.26      |0.15         |0.41       |0.03        |-0.14    |1.19   |
-|3       |-0.19      |0.16         |0.43       |0.03        |-0.14    |1.19   |
-|4       |-0.20      |0.16         |0.43       |0.03        |-0.14    |1.19   |
+|A1      |-2.11      |0.18         |0.47       |0.34        |-0.37    |0.92   |
+|A7      |-2.37      |0.09         |0.28       |0.15        |-0.70    |0.92   |
+|A15    |-2.34      |0.10         |0.28       |0.25        |-0.04    |0.92   |
+|B2      |-1.94      |0.24         |0.58       |0.22        |-0.57    |0.92   |
 
 
 ### Model Validation
@@ -230,18 +231,18 @@ grid.arrange(residual,qq,nrow=1)
 
 ```{r echo=FALSE, fig.height=3, fig.width=4, fig.cap="Binned Residual Plot."}
 binnedplot(fitted(model),resid(model,type="response"))
+
 ```
 
 
-Residual plot in figure 4 shows the mean of residuals is almost 0, but there are a few points that deviate more from 0. Similarly, the Q-Q plot shows well alignment to the the line with a few points at the top slightly offset. Probably because there are fewer points in the entire data set. Figure 5 shows that most of points are within 95% confidence interval.
-
+Residual plot in figure 4 shows the mean of residuals is almost 0, but there are a few points that deviate more from 0. Similarly, the Q-Q plot shows well alignment to the the line with a few points at the top and bottom slightly offset. Figure 5 shows that most of points are within 95% confidence interval.
 \newpage
 
 ## Discussion
 
 ### Conclusion
 
-Through the above analysis and model validation, I think the model is reasonable in some extents.The model shows that income and labor rate have negative impact and poverty has positive impact on crime rate in district of Boston and is slightly different between month. The different estimates of these predictors are also convincing on the conditions of the different months.
+Through the above analysis and model validation, I think the model is reasonable in some extents. The model shows that income and labor rate have negative impact and poverty has positive impact on crime rate in district of Boston and is slightly different between district. The different estimates of these predictors are also convincing on the conditions of the different districts.
 
 
 ### Limitation and Next step
@@ -250,19 +251,21 @@ Through the above analysis and model validation, I think the model is reasonable
 
 2. Limitation for the selection of demographic data. There are 23 categories of total demographic data classification, while the selection is mainly based on individual subjective wishes. There may be demographic data categories that are more likely to influence crime rates that were not detected. If the next step is carried out, all demographic data can be modeled and filtered.
 
-3. Rougher data processing. The first one is the correspondence of district. There are inevitable errors in data collection, but I did not sort them according to latitude and longitude in data processing. The second is that demographic data are usually on an annual basis, so that there is little variation in the coefficients for the different months in the report. These are now more difficult problems to deal with.
+3. Rougher data processing. The first one is the correspondence of district. There are inevitable errors in data collection, but I did not sort them according to latitude and longitude in data processing. The second is that population data is usually in years, so it seems difficult to use months as a reference and to expand the data more. In other words, if there is no way to get the population data by month, the model can only be structured on a year basis, which is not as accurate. These are now more difficult problems to deal with.
 
-## Citation
+
+
+
+\newpage
+## Appendix
+
+### Citation
 
 Regression with Categorical Variables: Dummy Coding Essentials in R
 http://www.sthda.com/english/articles/40-regression-analysis/163-regression-with-categorical-variables-dummy-coding-essentials-in-r/
 
 R Bootcamp: Introduction to Multilevel Model and Interactions
 https://quantdev.ssri.psu.edu/tutorials/r-bootcamp-introduction-multilevel-model-and-interactions
-
-
-\newpage
-## Appendix
 
 ### Comparison table of DISTRICT
 
@@ -286,7 +289,7 @@ https://quantdev.ssri.psu.edu/tutorials/r-bootcamp-introduction-multilevel-model
 
 ### More EDA
 
-```{r photo, echo=FALSE, out.width = '100%', fig.cap="Map of crime data."}
+```{r photo, echo=FALSE, out.width = '80%', fig.cap="Map of crime data."}
 map<-data %>% dplyr::select(INCIDENT_NUMBER,Lat,Long)
 map<-unique(map)
 map %<>% filter(!is.na(Lat) & !Lat==-1)
@@ -360,4 +363,12 @@ coef(model)
 ```{r echo=FALSE, fig.height=5, fig.width=7, fig.cap="Predicted values (marginal effects)."}
 EDA1<-sjPlot::plot_model(model,"eff")
 grid.arrange(EDA1$UCR_PART,EDA1$log_Income,EDA1$Labor_rate,EDA1$Poverty_rate,nrow=2)
+```
+
+
+```{r echo=FALSE, fig.height=5, fig.width=7, fig.cap="Residuals vs Leverage."}
+ggplot(data.frame(lev=hatvalues(model),pearson=residuals(model,type="pearson")),
+      aes(x=lev,y=pearson)) +
+    geom_point() +
+    theme_bw()
 ```
